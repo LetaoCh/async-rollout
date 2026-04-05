@@ -1,43 +1,38 @@
+from __future__ import annotations
+
 import time
+
 import ray
 
 from reconciler import Reconciler
-from trainer import Trainer
 from worker import RolloutWorker
 
 
 def main() -> None:
     ray.init()
 
-    trainer = Trainer.remote(train_batch_size=4)
-    reconciler = Reconciler.remote(trainer, num_jobs=12)
+    reconciler = Reconciler.remote(lease_seconds=10.0)
+    ray.get(reconciler.seed_jobs.remote(num_jobs=10, policy_version=0))
 
-    workers = [
-        RolloutWorker.remote(f"worker-{i}", reconciler)
-        for i in range(3)
-    ]
+    workers = [RolloutWorker.remote(f"worker-{i}", reconciler) for i in range(3)]
 
-    worker_refs = [w.run.remote() for w in workers]
+    # start workers
+    run_refs = [worker.run.remote() for worker in workers]
 
     while True:
-        stats = ray.get(reconciler.get_stats.remote())
-        trainer_stats = ray.get(trainer.get_stats.remote())
+        summary = ray.get(reconciler.get_summary.remote())
+        print(summary)
 
-        print("\n=== SYSTEM STATS ===")
-        print(stats)
-        print(trainer_stats)
-
-        if stats["all_done"]:
+        done = ray.get(reconciler.all_jobs_completed.remote())
+        if done:
             break
 
         time.sleep(1.0)
 
-    ray.get(worker_refs)
+    # for worker in workers:
+    #     ray.get(worker.stop.remote())
 
-    print("\nFinal reconciler stats:")
-    print(ray.get(reconciler.get_stats.remote()))
-    print("\nFinal trainer stats:")
-    print(ray.get(trainer.get_stats.remote()))
+    print("All jobs completed.")
 
     ray.shutdown()
 

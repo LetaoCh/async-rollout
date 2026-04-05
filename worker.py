@@ -1,45 +1,50 @@
+from __future__ import annotations
+
 import random
 import time
+
 import ray
+
+from models import RolloutResult
 
 
 @ray.remote
 class RolloutWorker:
-    def __init__(self, worker_id: str, reconciler) -> None:
+    def __init__(self, worker_id: str, reconciler):
         self.worker_id = worker_id
         self.reconciler = reconciler
+        self.running = True
 
     def run(self) -> None:
         ray.get(self.reconciler.register_worker.remote(self.worker_id))
 
-        while True:
+        while self.running:
+            ray.get(self.reconciler.heartbeat.remote(self.worker_id))
+
             job = ray.get(self.reconciler.lease_job.remote(self.worker_id))
+
             if job is None:
-                print(f"[Worker {self.worker_id}] no more work, exiting")
-                return
+                time.sleep(0.5)
+                continue
 
-            print(
-                f"[Worker {self.worker_id}] running {job['job_id']} "
-                f"attempt={job['attempt']} policy_version={job['policy_version']}"
+            # fake rollout work
+            time.sleep(random.uniform(0.2, 1.0))
+
+            result = RolloutResult(
+                job_id=job.job_id,
+                worker_id=self.worker_id,
+                attempt=job.attempt,
+                policy_version=job.policy_version,
+                payload={
+                    "reward": random.random(),
+                    "steps": random.randint(10, 100),
+                },
             )
 
-            # fake rollout
-            time.sleep(random.uniform(0.3, 1.0))
-            result = {
-                "job_id": job["job_id"],
-                "worker_id": self.worker_id,
-                "policy_version": job["policy_version"],
-                "reward": round(random.uniform(0.0, 1.0), 3),
-                "steps": random.randint(20, 100),
-            }
+            accepted = ray.get(self.reconciler.submit_result.remote(result))
 
-            accepted = ray.get(
-                self.reconciler.submit_result.remote(
-                    self.worker_id,
-                    job["job_id"],
-                    job["attempt"],
-                    result,
-                )
-            )
+            if not accepted:
+                print(f"[{self.worker_id}] result rejected for {job.job_id}")
 
-            print(f"[Worker {self.worker_id}] submit result for {job['job_id']} accepted={accepted}")
+    # def stop(self) -> None:
+    #     self.running = False
