@@ -11,7 +11,7 @@ from worker import RolloutWorker
 def main() -> None:
     ray.init()
 
-    reconciler = Reconciler.remote(lease_seconds=10.0)
+    reconciler = Reconciler.remote()
     ray.get(reconciler.seed_jobs.remote(num_jobs=10, policy_version=0))
 
     workers = [RolloutWorker.remote(f"worker-{i}", reconciler) for i in range(3)]
@@ -20,10 +20,12 @@ def main() -> None:
     run_refs = [worker.run.remote() for worker in workers]
 
     while True:
+        ray.get(reconciler.tick.remote())
+
         summary = ray.get(reconciler.get_summary.remote())
         print(summary)
 
-        done = ray.get(reconciler.all_jobs_completed.remote())
+        done = ray.get(reconciler.all_jobs_finished.remote())
         if done:
             break
 
@@ -32,7 +34,7 @@ def main() -> None:
     # for worker in workers:
     #     ray.get(worker.stop.remote())
 
-    print("All jobs completed.")
+    print("All jobs finished.")
 
     ray.shutdown()
 
