@@ -100,9 +100,17 @@ class Reconciler:
             )
 
         # Normalize restart state: don't resume LEASED jobs.
+        current = self._trainer_policy_version()
         for job in self.jobs.values():
             if job.status == JobStatus.LEASED:
-                job.status = JobStatus.RETRY_PENDING if job.attempt > 0 else JobStatus.PENDING
+                if current is not None:
+                    lag = current - job.policy_version
+                    if lag > self.max_policy_lag:
+                        job.status = JobStatus.STALE_POLICY
+                    else:
+                        job.status = JobStatus.RETRY_PENDING
+                else:
+                    job.status = JobStatus.RETRY_PENDING
             job.assigned_worker = None
             job.lease_expiry = None
 

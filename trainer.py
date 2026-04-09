@@ -20,6 +20,7 @@ class Trainer:
         data = {
             "current_policy_version": self.current_policy_version,
             "num_rollouts_received": self.num_rollouts_received,
+            "train_every": self.train_every,
             "buffer_max": self.buffer_max,
             "recent_rollouts": self.recent_rollouts,
         }
@@ -32,6 +33,7 @@ class Trainer:
 
         self.current_policy_version = int(data.get("current_policy_version", 0))
         self.num_rollouts_received = int(data.get("num_rollouts_received", 0))
+        self.train_every = int(data.get("train_every", self.train_every))
         self.buffer_max = int(data.get("buffer_max", self.buffer_max))
         self.recent_rollouts = list(data.get("recent_rollouts", []))
         if len(self.recent_rollouts) > self.buffer_max:
