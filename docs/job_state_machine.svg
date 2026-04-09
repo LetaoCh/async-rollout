@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420">
+  <defs>
+    <style>
+      .box { fill: #ffffff; stroke: #1f2937; stroke-width: 2; rx: 12; ry: 12; }
+      .title { font: 700 16px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; fill: #111827; }
+      .text { font: 13px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; fill: #374151; }
+      .arrow { stroke: #111827; stroke-width: 2.5; fill: none; marker-end: url(#arrowhead); }
+      .subtle { fill: #f9fafb; stroke: #e5e7eb; stroke-width: 2; rx: 12; ry: 12; }
+      .term { fill: #ecfeff; stroke: #06b6d4; }
+      .warn { fill: #fff7ed; stroke: #fb923c; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#111827"/>
+    </marker>
+  </defs>
+
+  <rect x="24" y="24" width="912" height="372" class="subtle"/>
+  <text x="44" y="52" class="title">Job state machine (Reconciler)</text>
+
+  <!-- States -->
+  <rect x="70" y="110" width="160" height="70" class="box"/>
+  <text x="92" y="150" class="title">PENDING</text>
+
+  <rect x="290" y="110" width="160" height="70" class="box"/>
+  <text x="312" y="150" class="title">LEASED</text>
+
+  <rect x="510" y="110" width="180" height="70" class="box term"/>
+  <text x="532" y="150" class="title">COMPLETED</text>
+
+  <rect x="290" y="260" width="200" height="70" class="box warn"/>
+  <text x="312" y="300" class="title">RETRY_PENDING</text>
+
+  <rect x="540" y="260" width="210" height="70" class="box warn"/>
+  <text x="562" y="300" class="title">FAILED_PERMANENT</text>
+
+  <rect x="740" y="110" width="170" height="70" class="box warn"/>
+  <text x="762" y="150" class="title">STALE_POLICY</text>
+
+  <!-- Transitions -->
+  <path d="M 230 145 C 250 145, 270 145, 290 145" class="arrow"/>
+  <text x="240" y="132" class="text">lease_job()</text>
+
+  <path d="M 450 145 C 475 145, 490 145, 510 145" class="arrow"/>
+  <text x="458" y="132" class="text">submit_result()</text>
+
+  <path d="M 370 180 C 370 215, 370 225, 370 260" class="arrow"/>
+  <text x="388" y="224" class="text">tick(): lease expired</text>
+
+  <path d="M 390 330 C 390 355, 210 355, 150 180" class="arrow"/>
+  <text x="190" y="360" class="text">lease_job() again</text>
+
+  <path d="M 490 295 C 520 295, 525 295, 540 295" class="arrow"/>
+  <text x="500" y="282" class="text">max_retries exceeded</text>
+
+  <path d="M 450 130 C 545 85, 650 85, 740 130" class="arrow"/>
+  <text x="520" y="90" class="text">stale result (policy lag too large)</text>
+
+  <path d="M 450 295 C 610 295, 700 240, 770 180" class="arrow"/>
+  <text x="600" y="240" class="text">expired + stale lag</text>
+
+  <!-- Notes -->
+  <text x="70" y="86" class="text">
+    Accept a result only if execution checks pass AND (trainer_policy - job_policy) d max_policy_lag.
+  </text>
+</svg>
