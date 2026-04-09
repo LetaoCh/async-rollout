@@ -10,10 +10,11 @@ from models import RolloutResult
 
 @ray.remote
 class RolloutWorker:
-    def __init__(self, worker_id: str, reconciler):
+    def __init__(self, worker_id: str, reconciler, verbose: bool = False):
         self.worker_id = worker_id
         self.reconciler = reconciler
         self.running = True
+        self.verbose = verbose
 
     def run(self) -> None:
         ray.get(self.reconciler.register_worker.remote(self.worker_id))
@@ -27,15 +28,24 @@ class RolloutWorker:
                 time.sleep(0.5)
                 continue
 
-            print(
-                f"[{self.worker_id}] leased job {job.job_id} "
-                f"attempt={job.attempt} policy_version={job.policy_version}"
-            )
+            if self.verbose:
+                print(
+                    f"[{self.worker_id}] leased job {job.job_id} "
+                    f"attempt={job.attempt} policy_version={job.policy_version}"
+                )
 
-            # fake rollout work
-            time.sleep(random.uniform(0.2, 1.0))
+            # Mixed-run sim: mostly fast completions; some slow paths stress lease + policy lag.
+            if random.random() < 0.70:
+                delay = random.uniform(0.15, 0.85)
+            else:
+                delay = random.uniform(9.0, 22.0)
+                if self.verbose:
+                    print(f"[{self.worker_id}] long-hang rollout {delay:.1f}s for {job.job_id}")
 
-            print(f"[{self.worker_id}] finished fake rollout for {job.job_id}")
+            time.sleep(delay)
+
+            if self.verbose:
+                print(f"[{self.worker_id}] finished fake rollout for {job.job_id}")
 
             result = RolloutResult(
                 job_id=job.job_id,
@@ -50,10 +60,8 @@ class RolloutWorker:
 
             accepted = ray.get(self.reconciler.submit_result.remote(result))
 
-            if accepted:
-                print(f"[{self.worker_id}] result accepted for {job.job_id}")
-            else:
-                print(f"[{self.worker_id}] result rejected for {job.job_id}")
-
-    # def stop(self) -> None:
-    #     self.running = False
+            if self.verbose:
+                if accepted:
+                    print(f"[{self.worker_id}] result accepted for {job.job_id}")
+                else:
+                    print(f"[{self.worker_id}] result rejected for {job.job_id}")

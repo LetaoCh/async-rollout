@@ -11,6 +11,7 @@ class JobStatus(str, Enum):
     COMPLETED = "COMPLETED"
     RETRY_PENDING = "RETRY_PENDING"
     FAILED_PERMANENT = "FAILED_PERMANENT"
+    STALE_POLICY = "STALE_POLICY"
 
 
 class WorkerStatus(str, Enum):
